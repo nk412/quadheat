@@ -5,17 +5,18 @@ ControlP5 cp5;
 //TODO move this out to a file
 
 //Global vars
-String image_path = "santa_veiva.jpg";
+String image_path = "mass_effect.jpg";
 String data_file  = "heatmap_data.tsv";
+float scaling_factor = 0.5;
 PImage map;
 int grid_w, grid_h;
 
 //Slider settings
-float slider_show_fps_under = 60;
-float slider_show_min_obs = 10;
+float max_fps_threshold = 60;
+float min_obs_threshold = 10;
 int grid_nx=15;
 int grid_ny=10;
-boolean directional = false;
+boolean directional_mode = false;
 
 //Data source settings
 float x_offset = 8;
@@ -157,10 +158,10 @@ void draw_triangles(){
     int tl_y = y * grid_h;
 
     float val = heatmap_data[dir][x][y][0];
-    if ( 60 - val > slider_show_fps_under ) continue;
+    if ( 60 - val > max_fps_threshold ) continue;
     
     float obs = heatmap_data[dir][x][y][1];
-    if ( obs < slider_show_min_obs ) continue;      
+    if ( obs < min_obs_threshold ) continue;      
             
     
     float mx = maxes[dir];
@@ -217,9 +218,9 @@ void draw_boxes(){
       compound_obs += heatmap_data[dir][x][y][1];
     }
     float val = compound_val / compound_obs ;
-    if ( 60 - val > slider_show_fps_under ) continue;
+    if ( 60 - val > max_fps_threshold ) continue;
     float obs = compound_obs;
-    if ( obs < slider_show_min_obs ) continue;      
+    if ( obs < min_obs_threshold ) continue;      
             
     float strength=max(0,(val-min_single)/(max_single - min_single));
           
@@ -233,7 +234,7 @@ void draw_boxes(){
 }
 
 void draw_heatmap(){
-  if ( directional == true ) draw_triangles();
+  if ( directional_mode == true ) draw_triangles();
   else                       draw_boxes();
 }
 
@@ -242,7 +243,12 @@ void setup(){
   
   println("Loading image...");
   map=loadImage(image_path);
+  map.resize( int(map.width*scaling_factor) , int(map.height*scaling_factor) );
   size(map.width,map.height);
+
+  // if (frame != null) {
+  //   frame.setResizable(true);
+  // }
   
   // set global variables
   strokeWeight(grid_stroke);
@@ -252,9 +258,9 @@ void setup(){
   refresh_data();
 
   cp5 = new ControlP5(this);
-  cp5.addSlider("slider_show_fps_under").setPosition(1500,25).setSize(200,20).setRange(0,60).setValue(25);
-  cp5.addSlider("slider_show_min_obs").setPosition(1500,50).setSize(200,20).setRange(0,1000).setValue(200);
-  cp5.addToggle("directional").setPosition(1500,75).setSize(30,20);
+  cp5.addSlider("max_fps_threshold").setPosition(width-300,25).setSize(200,20).setRange(0,60).setValue(25);
+  cp5.addSlider("min_obs_threshold").setPosition(width-300,50).setSize(200,20).setRange(0,1000).setValue(200);
+  cp5.addToggle("directional_mode").setPosition(width-300,75).setSize(30,20);
   
 }
 
@@ -266,7 +272,6 @@ void refresh_data(){
 }
 
 void draw(){
-
   background(map);
 //  draw_gridlines();
   fill(0,0,0,150);
