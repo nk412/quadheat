@@ -1,38 +1,37 @@
 import controlP5.*;
 ControlP5 cp5;
 
-//CONFIG
-//TODO move this out to a file
-
 //Global vars
 String image_path = "mass_effect.jpg";
 String data_file  = "heatmap_data.tsv";
 float scaling_factor = 0.5;
+int cp5_panel_offset = 300;
+int MAX_BINS=50;
 PImage map;
+Slider2D gridsize_selector;
+String[] raw_dataset;
 int grid_w, grid_h;
+float[][][][] heatmap_data =  new float[4][MAX_BINS][MAX_BINS][2];
 
-//Slider settings
-float max_fps_threshold = 60;
+//Control panel settings
+float max_fps_threshold = 30;
 float min_obs_threshold = 10;
+boolean directional_mode = false;
+boolean enable_gridlines = false;
 int grid_nx=15;
 int grid_ny=10;
-boolean directional_mode = false;
 
-//Data source settings
+//Santa_Veiva specific settings
 float x_offset = 8;
 float y_offset = 232;
 float orig_w = 900; 
 float orig_h = 536;
 
 //Grid settings
-
-boolean draw_grid = true;
 float grid_stroke=0.1;
 float square_opacity=180;
 
 
-float[][][][] heatmap_data =  new float[4][grid_nx][grid_ny][2];
-// direction, xbin, ybin, level (val/count)
 
 //=================================================================================
 
@@ -103,17 +102,14 @@ void parse_line(String l){
 
 
 void read_dataset(){
-  print("Processing dataset...");
-  String[] dataset = loadStrings(data_file);
-  for (int l = 0 ; l<dataset.length ; l++ )
-    parse_line(dataset[l]);
-  println("Done!");
+  for (int l = 0 ; l<raw_dataset.length ; l++ )
+    parse_line(raw_dataset[l]);
 }
 
-void init_array(){
+void reset_array(){
   for ( int dir = 0 ; dir < 4 ; dir++ )
-    for ( int x = 0 ; x < grid_nx ; x++ )
-      for ( int y = 0 ;  y < grid_ny ; y++ ){
+    for ( int x = 0 ; x < MAX_BINS ; x++ )
+      for ( int y = 0 ;  y < MAX_BINS ; y++ ){
         heatmap_data[dir][x][y][0]=0;
         heatmap_data[dir][x][y][1]=0;
       }
@@ -133,7 +129,7 @@ void print_dataset(){
 
 
 void draw_gridlines(){
-  if ( draw_grid == true ){
+  if ( enable_gridlines == true ){
     for(int x = 0 ; x < grid_nx ; x++)
         line(x*grid_w,0,x*grid_w,map.height);
     for(int y = 0 ; y < grid_ny ; y++)
@@ -234,8 +230,8 @@ void draw_boxes(){
 }
 
 void draw_heatmap(){
-  if ( directional_mode == true ) draw_triangles();
-  else                       draw_boxes();
+  if ( directional_mode == true )   draw_triangles();
+  else                              draw_boxes();
 }
 
 
@@ -243,38 +239,47 @@ void setup(){
   
   println("Loading image...");
   map=loadImage(image_path);
+  raw_dataset = loadStrings(data_file);
+
   map.resize( int(map.width*scaling_factor) , int(map.height*scaling_factor) );
   size(map.width,map.height);
 
-  // if (frame != null) {
-  //   frame.setResizable(true);
-  // }
-  
-  // set global variables
+  // set global variables 
   strokeWeight(grid_stroke);
   textSize(10);
   stroke(255,100);
   
-  refresh_data();
 
+  //cp5 control panel
   cp5 = new ControlP5(this);
-  cp5.addSlider("max_fps_threshold").setPosition(width-300,25).setSize(200,20).setRange(0,60).setValue(25);
-  cp5.addSlider("min_obs_threshold").setPosition(width-300,50).setSize(200,20).setRange(0,1000).setValue(200);
-  cp5.addToggle("directional_mode").setPosition(width-300,75).setSize(30,20);
+  cp5.addSlider("max_fps_threshold").setPosition(width - cp5_panel_offset,25).setSize(200,20).setRange(0,60).setValue(25);
+  cp5.addSlider("min_obs_threshold").setPosition(width - cp5_panel_offset,50).setSize(200,20).setRange(0,1000).setValue(200);
+  cp5.addToggle("directional_mode").setPosition(width - cp5_panel_offset,75).setSize(30,20);
+  cp5.addToggle("enable_gridlines").setPosition(width -cp5_panel_offset,110).setSize(30,20);
+  gridsize_selector=cp5.addSlider2D("GridSize")
+         .setPosition(30,40)
+         .setSize(100,100)
+         .setArrayValue(new float[] {28, 16})
+         //.disableCrosshair()
+         ;
   
+  // refresh_data();
 }
 
 void refresh_data(){
+  grid_nx = max( 1, min(MAX_BINS, int( (100 - gridsize_selector.arrayValue()[0]) / 2 ) ) );
+  grid_ny = max( 1, min(MAX_BINS, int( (100 - gridsize_selector.arrayValue()[1]) / 2 ) ) );
   grid_w = round( map.width / grid_nx );
   grid_h = round( map.height / grid_ny );
-  init_array();
+  reset_array();
   read_dataset();
 }
 
 void draw(){
   background(map);
-//  draw_gridlines();
+  refresh_data();
+  draw_gridlines();
   fill(0,0,0,150);
-  rect(1450,10,1750,70,7);
+  rect(width-cp5_panel_offset - 20,0,width+20,150,7);
   draw_heatmap();
 }
