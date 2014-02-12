@@ -54,7 +54,7 @@ void update_heatmap_data(int binx, int biny, int dir, float fps){
   old_cnt += 1;
   float new_val = old_prod / old_cnt;
   heatmap_data[dir][binx][biny][0] = new_val;
-  heatmap_data[dir][binx][biny][0] = old_cnt;
+  heatmap_data[dir][binx][biny][1] = old_cnt;
 }
 
 void parse_line(String l){
@@ -95,6 +95,17 @@ void init_array(){
       }
 }
 
+void print_dataset(){
+  for ( int x=0; x<grid_nx; x++ ){
+    for ( int y=0 ; y< grid_ny; y++){
+      for ( int dir = 0; dir<1; dir++){
+        print(heatmap_data[dir][x][y][0]+" ");
+        }
+      }
+    println("");
+  }  
+}
+
 
 
 void draw_gridlines(){
@@ -128,8 +139,8 @@ void draw_triangles(){
         float val = heatmap_data[dir][x][y][0];
         float mx = maxes[dir];
         float opac = floor((val/mx)*square_opacity);
-        println(val,mx, opac);
-
+        // if (opac > 0 ) println(opac);
+        // println(val,mx, opac);
 
         switch(dir){
           case 0:
@@ -167,6 +178,7 @@ void setup(){
   grid_h = round( map.height / grid_ny );
   init_array();
   read_dataset();
+  // print_dataset();
 
 }
 
@@ -174,5 +186,5 @@ void draw(){
   background(map);
   draw_gridlines();
   draw_triangles();
-  // delay(1000);
+  delay(1000);
 }
