@@ -4,20 +4,21 @@ ControlP5 cp5;
 //Global vars
 String image_path = "mass_effect.jpg";
 String data_file  = "heatmap_data.tsv";
-float scaling_factor = 0.5;
+float scaling_factor = 1;
 int cp5_panel_offset = 300;
-int MAX_BINS=50;
+int MAX_BINS=40;
 PImage map;
 Slider2D gridsize_selector;
 String[] raw_dataset;
 int grid_w, grid_h;
-float[][][][] heatmap_data =  new float[4][MAX_BINS][MAX_BINS][2];
 
 //Control panel settings
 float max_fps_threshold = 30;
 float min_obs_threshold = 10;
 boolean directional_mode = false;
 boolean enable_gridlines = false;
+boolean show_fps = true;
+boolean show_obs = false;
 int grid_nx=15;
 int grid_ny=10;
 
@@ -31,7 +32,8 @@ float orig_h = 536;
 float grid_stroke=0.1;
 float square_opacity=180;
 
-
+//Data container
+float[][][][] heatmap_data =  new float[4][MAX_BINS][MAX_BINS][2];
 
 //=================================================================================
 
@@ -53,6 +55,13 @@ float round_float(float val, int dp)
 {
   return int(val*pow(10,dp))/pow(10,dp);
 } 
+
+String generate_intext(float val, float obs){
+    String intext = "";
+    if( show_fps == true ) intext+=round_float(60-val,1);
+    if( show_obs == true ) intext+="("+int(obs)+")";
+    return intext;
+}
 
 int get_direction( String rot ){
   // N,E,S,W = 0,1,2,3
@@ -167,26 +176,29 @@ void draw_triangles(){
     float opac = floor(strength*square_opacity);
     if (opac == 0) continue;
 
+
+    String intext = generate_intext(val,obs);
+
     
     switch(dir){
       case 0: // north
         fill(255,0,0,opac); triangle(tl_x,tl_y,               tl_x+grid_w,tl_y,                tl_x+(grid_w/2),tl_y+(grid_h/2));
-        fill(255); text( round_float(60-val,1) +"("+int(obs)+")",  tl_x+(grid_w/3), tl_y+(grid_h/4));
+        fill(255); text( intext,  tl_x+(grid_w/3), tl_y+(grid_h/4));
         break;
         
       case 1: // east
         fill(255,0,0,opac); triangle(tl_x+grid_w,tl_y,        tl_x+grid_w,tl_y+grid_h,         tl_x+(grid_w/2),tl_y+(grid_h/2));
-        fill(255); text(  round_float(60-val,1) +"("+int(obs)+")",  tl_x+(grid_w/2), tl_y+(grid_h/2));
+        fill(255); text( intext,  tl_x+(grid_w/2), tl_y+(grid_h/2));
         break;
      
       case 2: // south
         fill(255,0,0,opac); triangle(tl_x+grid_w,tl_y+grid_h, tl_x,tl_y+grid_h,                tl_x+(grid_w/2),tl_y+(grid_h/2));
-        fill(255); text(  round_float(60-val,1) +"("+int(obs)+")",  tl_x+(grid_w/3), tl_y+grid_h);
+        fill(255); text( intext,  tl_x+(grid_w/3), tl_y+grid_h);
         break;
       
       case 3: // west
         fill(255,0,0,opac); triangle(tl_x,tl_y,               tl_x,tl_y+grid_h,                tl_x+(grid_w/2),tl_y+(grid_h/2));
-        fill(255); text(  round_float(60-val,1) +"("+int(obs)+")",  tl_x, tl_y+(grid_h/2));
+        fill(255); text( intext,  tl_x, tl_y+(grid_h/2));
         break;
      }
   }
@@ -223,9 +235,11 @@ void draw_boxes(){
     float opac = floor(strength*square_opacity);
     if (opac == 0) continue;
 
+    String intext = generate_intext(val,obs);
+
     rectMode(CORNERS);
     fill(255,0,0,opac); rect(tl_x,tl_y,tl_x+grid_w,tl_y+grid_h);
-    fill(255); text( round_float(60-val,1) +"("+int(obs)+")",  tl_x+(grid_w/3), tl_y+(grid_h/2));
+    fill(255); text( intext,  tl_x+(grid_w/3), tl_y+(grid_h/2));
   }
 }
 
@@ -254,21 +268,18 @@ void setup(){
   cp5 = new ControlP5(this);
   cp5.addSlider("max_fps_threshold").setPosition(width - cp5_panel_offset,25).setSize(200,20).setRange(0,60).setValue(25);
   cp5.addSlider("min_obs_threshold").setPosition(width - cp5_panel_offset,50).setSize(200,20).setRange(0,1000).setValue(200);
-  cp5.addToggle("directional_mode").setPosition(width - cp5_panel_offset,75).setSize(30,20);
-  cp5.addToggle("enable_gridlines").setPosition(width -cp5_panel_offset,110).setSize(30,20);
-  gridsize_selector=cp5.addSlider2D("GridSize")
-         .setPosition(30,40)
-         .setSize(100,100)
-         .setArrayValue(new float[] {28, 16})
-         //.disableCrosshair()
-         ;
+  cp5.addToggle("directional_mode").setPosition(width - cp5_panel_offset + 120 ,75).setSize(30,20);
+  cp5.addToggle("enable_gridlines").setPosition(width -cp5_panel_offset + 120,110).setSize(30,20);
+  cp5.addToggle("show_fps").setPosition(width - cp5_panel_offset + 220 ,75).setSize(30,20);
+  cp5.addToggle("show_obs").setPosition(width -cp5_panel_offset + 220,110).setSize(30,20);
+  gridsize_selector=cp5.addSlider2D("gridsize").setPosition(width - cp5_panel_offset,75).setSize(100,100).setArrayValue(new float[] {70, 81});
   
   // refresh_data();
 }
 
 void refresh_data(){
-  grid_nx = max( 1, min(MAX_BINS, int( (100 - gridsize_selector.arrayValue()[0]) / 2 ) ) );
-  grid_ny = max( 1, min(MAX_BINS, int( (100 - gridsize_selector.arrayValue()[1]) / 2 ) ) );
+  grid_nx = max( 1, min(MAX_BINS, int( (100 - gridsize_selector.arrayValue()[0]) / 2.2 ) ) );
+  grid_ny = max( 1, min(MAX_BINS, int( (100 - gridsize_selector.arrayValue()[1]) / 2.2 ) ) );
   grid_w = round( map.width / grid_nx );
   grid_h = round( map.height / grid_ny );
   reset_array();
@@ -280,6 +291,6 @@ void draw(){
   refresh_data();
   draw_gridlines();
   fill(0,0,0,150);
-  rect(width-cp5_panel_offset - 20,0,width+20,150,7);
+  rect(width-cp5_panel_offset - 20,0,width+20,200,7);
   draw_heatmap();
 }
