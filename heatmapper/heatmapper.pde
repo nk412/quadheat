@@ -15,7 +15,7 @@ boolean aggregated_data;
 String image_path;
 String data_file;
 float scaling_factor;
-int MAX_BINS=50;
+int MAX_BINS=100;
 int heatmap_min;
 int heatmap_max;
 PImage map;
@@ -75,7 +75,9 @@ float translate_y_coord(float y){
 }
 
 float translate_fps(float old_fps){
-  return max(0,60-old_fps);
+  // return max(0,60-old_fps);
+  return old_fps*1000;
+
 }
 
 float round_float(float val, int dp)
@@ -478,4 +480,5 @@ void draw(){
   fill(0,0,0,150);
   rect(width-cp5_panel_offset - 20,0,width+20,250,7);
   draw_heatmap();
+  text(translate_x_coord(mouseX),mouseX,mouseY);
 }
