@@ -7,8 +7,8 @@ String config_file="conf.properties";
 
 //MODE
 boolean binned_input;
-int input_grid_nx=10;
-int input_grid_ny=10;
+int input_grid_nx;
+int input_grid_ny;
 boolean aggregated_data;
 
 //Global vars
@@ -36,11 +36,11 @@ int grid_ny=10;
 int old_grid_nx,old_grid_ny;
 boolean override_optima=false;
 
-//Santa_Veiva specific settings
-float x_offset = 8;
-float y_offset = 232;
-float orig_w = 900; 
-float orig_h = 536;
+//Map translation settings
+float x_offset;
+float y_offset;
+float orig_w;
+float orig_h;
 
 //Grid settings
 float grid_stroke=0.1;
@@ -50,6 +50,7 @@ float square_opacity=180;
 float[][][][] heatmap_data =  new float[4][MAX_BINS][MAX_BINS][2];
 
 //=================================================================================
+
 class P5Properties extends Properties {
   boolean getBooleanProperty(String id, boolean defState) {
     return boolean(getProperty(id,""+defState));
@@ -61,8 +62,6 @@ class P5Properties extends Properties {
     return float(getProperty(id,""+defVal)); 
   }  
 }
-
-
 
 // Coordinate translation
 float translate_x_coord(float x){
@@ -128,17 +127,6 @@ void update_heatmap_data_aggregated_data(int binx, int biny, int dir, float old_
   
   heatmap_data[dir][binx][biny][0] = new_val;
   heatmap_data[dir][binx][biny][1] = old_cnt;
-  
-//  if ( old_fps == 0 ) return; 
-//  float fps = translate_fps(old_fps);
-//  float old_val = heatmap_data[dir][binx][biny][0]; //mean
-//  float old_cnt = heatmap_data[dir][binx][biny][1]; //count
-//  float old_prod = old_val * old_cnt;
-//  old_prod += fps;
-//  old_cnt += obs;
-//  float new_val = old_prod / old_cnt;
-//  heatmap_data[dir][binx][biny][0] = new_val;
-//  heatmap_data[dir][binx][biny][1] = old_cnt;
 
 }
 
@@ -332,8 +320,10 @@ void draw_boxes(){
 }
 
 void draw_heatmap(){
-  if ( directional_mode == true )   draw_triangles();
-  else                              draw_boxes();
+  if ( directional_mode == true )
+    draw_triangles();
+  else
+    draw_boxes();
 }
 
 void read_config_file(){
@@ -345,19 +335,24 @@ void read_config_file(){
       // so we need to cast them into the appropriate type ourselves
       // this is done for us by the convenience P5Properties class below
       //MODE
+            
+      
       binned_input = props.getBooleanProperty("binned_mode.enabled",false);
       input_grid_nx=props.getIntProperty("binned_mode.input_grid_nx",10);
       input_grid_ny=props.getIntProperty("binned_mode.input_grid_ny",10);
-      image_path=props.getProperty("map.path","santa_veiva.jpg");
+      
       data_file=props.getProperty("map.data","heatmap_data.tsv");
       
       aggregated_data=props.getBooleanProperty("aggregated_data",false);
       
-      x_offset =props.getIntProperty("map.x_offset",8);
-      y_offset = props.getIntProperty("map.y_offset",232);
-      orig_w = props.getIntProperty("map.orig_w",900);
-      orig_h = props.getIntProperty("map.orig_h",536);
-      scaling_factor = props.getFloatProperty("map.scaling.factor",0.8);
+      String mapname = props.getProperty("map.name","santa_veiva");
+      
+      image_path=props.getProperty("map."+mapname+".path","santa_veiva.jpg");
+      x_offset =props.getIntProperty("map."+mapname+".x_offset",8);
+      y_offset = props.getIntProperty("map."+mapname+".y_offset",232);
+      orig_w = props.getIntProperty("map."+mapname+".orig_w",900);
+      orig_h = props.getIntProperty("map."+mapname+".orig_h",536);
+      scaling_factor = props.getFloatProperty("map."+mapname+".scaling.factor",0.8);
       
       heatmap_min=props.getIntProperty("heatmap.optima.override.default.min" , 0);
       heatmap_max=props.getIntProperty("heatmap.optima.override.default.max" , 60);
@@ -390,6 +385,24 @@ void read_config_file(){
    
     }catch(IOException e) {
     println("couldn't read config file...");
+    }
+}
+
+void refresh_data(){
+  if (binned_input == true){
+    grid_nx = input_grid_nx;
+    grid_ny = input_grid_ny;
+  } else {
+    grid_nx = max( 1, min(MAX_BINS, int( (100 - gridsize_selector.arrayValue()[0]) / 2.2 ) ) );
+    grid_ny = max( 1, min(MAX_BINS, int( (100 - gridsize_selector.arrayValue()[1]) / 2.2 ) ) );
+  }
+  if ( grid_nx != old_grid_nx || grid_ny != old_grid_ny){
+    old_grid_nx=grid_nx;
+    old_grid_ny=grid_ny;
+    grid_w = round( map.width / grid_nx );
+    grid_h = round( map.height / grid_ny );
+    reset_array();
+    read_dataset();
   }
 }
 
@@ -419,29 +432,12 @@ void setup(){
   cp5.addToggle("show_fps").setPosition(width - cp5_panel_offset + 220 ,75).setSize(30,20);
   cp5.addToggle("show_obs").setPosition(width -cp5_panel_offset + 220,110).setSize(30,20);
   cp5.addToggle("override_optima").setPosition(width - cp5_panel_offset + 220 ,150).setSize(30,20);
-  if(binned_input == false) gridsize_selector=cp5.addSlider2D("gridsize").setPosition(width - cp5_panel_offset,75).setSize(100,100).setArrayValue(new float[] {70, 81});
+  if( binned_input == false )
+    gridsize_selector=cp5.addSlider2D("gridsize").setPosition(width - cp5_panel_offset,75).setSize(100,100).setArrayValue(new float[] {70, 81});
   cp5.addSlider("heatmap_min").setPosition(width - cp5_panel_offset,210).setWidth(200).setRange(-100,100).setNumberOfTickMarks(20).setSliderMode(Slider.FLEXIBLE);
   cp5.addSlider("heatmap_max").setPosition(width - cp5_panel_offset,230).setWidth(200).setRange(-100,100).setValue(30).setNumberOfTickMarks(20).setSliderMode(Slider.FLEXIBLE);
 
   refresh_data();
-}
-
-void refresh_data(){
-  if (binned_input == true){
-    grid_nx = input_grid_nx;
-    grid_ny = input_grid_ny;
-  } else {
-    grid_nx = max( 1, min(MAX_BINS, int( (100 - gridsize_selector.arrayValue()[0]) / 2.2 ) ) );
-    grid_ny = max( 1, min(MAX_BINS, int( (100 - gridsize_selector.arrayValue()[1]) / 2.2 ) ) );
-  }
-  if ( grid_nx != old_grid_nx || grid_ny != old_grid_ny){
-    old_grid_nx=grid_nx;
-    old_grid_ny=grid_ny;
-    grid_w = round( map.width / grid_nx );
-    grid_h = round( map.height / grid_ny );
-    reset_array();
-    read_dataset();
-  }
 }
 
 void draw(){
@@ -451,4 +447,5 @@ void draw(){
   fill(0,0,0,150);
   rect(width-cp5_panel_offset - 20,0,width+20,250,7);
   draw_heatmap();
+  cp5.hide("heatmap_min");
 }
