@@ -22,6 +22,8 @@ PImage map;
 Slider2D gridsize_selector;
 String[] raw_dataset;
 int grid_w, grid_h;
+float observed_min=0;
+float observed_max=0;
 
 //Control panel settings
 int cp5_panel_offset = 300;
@@ -88,14 +90,11 @@ String generate_intext(float val, float obs){
     return intext;
 }
 
-int get_direction( String rot ){
+int get_direction( float rot ){
   // N,E,S,W = 0,1,2,3
-  float u = float ( split (rot,",")[0] );
-  float v = float ( split (rot,",")[1] );
-  float w = float ( split (rot,",")[2] );
-  if ( v < 45 || v > 315 ) return 0;
-  else if ( v < 135 ) return 1;
-  else if ( v < 225 ) return 2;
+  if ( rot < 45 || rot > 315 ) return 0;
+  else if ( rot < 135 ) return 1;
+  else if ( rot < 225 ) return 2;
   else return 3;
 }
 
@@ -111,6 +110,10 @@ void update_heatmap_data(int binx, int biny, int dir, float old_fps, float obs){
   float new_val = old_prod / old_cnt;
   heatmap_data[dir][binx][biny][0] = new_val;
   heatmap_data[dir][binx][biny][1] = old_cnt;
+
+  // update recorded min and max
+  if (new_val < observed_min) observed_min = new_val;
+  if (new_val > observed_max) observed_max = new_val;
 
 }
 
@@ -128,6 +131,10 @@ void update_heatmap_data_aggregated_data(int binx, int biny, int dir, float old_
   heatmap_data[dir][binx][biny][0] = new_val;
   heatmap_data[dir][binx][biny][1] = old_cnt;
 
+    // update recorded min and max
+  if (new_val < observed_min) observed_min = new_val;
+  if (new_val > observed_max) observed_max = new_val;
+
 }
 
 
@@ -139,36 +146,48 @@ void update_heatmap_data_binned_input(int binx, int biny, int dir, float old_fps
   
   heatmap_data[dir][binx][biny][0] = fps;
   heatmap_data[dir][binx][biny][1] = obs;
+
+  // update recorded min and max
+  if (fps < observed_min) observed_min = fps;
+  if (fps > observed_max) observed_max = fps;
 }
 
 void parse_line(String l){
-  String pos = split(l,TAB)[0];
-  String rot = split(l,TAB)[1];
-  String fps = split(l,TAB)[2];
-  String obs = "1.0";
-  if ( binned_input == true || aggregated_data == true ) obs = split(l,TAB)[3];
-
-  int binx=0;
-  int biny=0;
-  if ( binned_input == false ){
-    float pos_x = translate_x_coord(    float(split(pos,',')[0])    );
-    float pos_y = translate_y_coord(    float(split(pos,',')[2])    );
-    binx = max(0, floor( pos_x / grid_w ));
-    biny = max(0, floor( pos_y / grid_h));
-    binx = min(grid_nx-1,binx);
-    biny = min(grid_ny-1,biny);
-  } else {
-    binx = int(max(0, float(split(pos,',')[0])));
-    biny = int(max(0, float(split(pos,',')[1])));
-  }
   
-  int direction = get_direction(rot);
+  String[] columns = splitTokens(l,"\t");
+  
+  float pos_x = translate_x_coord( float(columns[0]) );
+  float pos_y = translate_y_coord( float(columns[1]) );
+  int direction = get_direction( float(columns[2]) );
+  float fps = float(columns[3]);
 
-  if ( binned_input == true ) update_heatmap_data_binned_input(binx,biny,direction,float(fps),float(obs));
-  else if ( aggregated_data == true ) update_heatmap_data_aggregated_data(binx,biny,direction,float(fps), float(obs));
-  else                       update_heatmap_data(binx,biny,direction,float(fps),float(obs));                               
+  // val translation here if necessary
 
-  // println(direction, pos_x, pos_y);
+  // // update recorded min and max
+  // if (fps < observed_min) observed_min = fps;
+  // if (fps > observed_max) observed_max = fps;
+
+  float obs = 1;
+  if ( columns.length > 4 ) obs= int( columns[4] );
+
+  int bin_x=0;
+  int bin_y=0;
+  if ( binned_input == false ){
+    bin_x = max(0, floor( pos_x / grid_w ));
+    bin_y = max(0, floor( pos_y / grid_h));
+    bin_x = min(grid_nx-1,bin_x);
+    bin_y = min(grid_ny-1,bin_y);
+  } else {
+    bin_x = int(  max(0, pos_x )  );
+    bin_y = int(  max(0, pos_y )  );
+  }
+
+  if ( binned_input == true )
+    update_heatmap_data_binned_input(bin_x,bin_y,direction,fps,obs);
+  else if ( aggregated_data == true )
+    update_heatmap_data_aggregated_data(bin_x,bin_y,direction,fps,obs);
+  else
+    update_heatmap_data(bin_x,bin_y,direction,fps,obs);                               
 }
 
 
@@ -176,6 +195,10 @@ void parse_line(String l){
 void read_dataset(){
   for (int l = 0 ; l<raw_dataset.length ; l++ )
     parse_line(raw_dataset[l]);
+  cp5.getController("heatmap_min").setMin(observed_min);
+  cp5.getController("heatmap_min").setMax(observed_max);
+  cp5.getController("heatmap_max").setMin(observed_min);
+  cp5.getController("heatmap_max").setMax(observed_max);
 }
 
 void reset_array(){
@@ -384,7 +407,7 @@ void read_config_file(){
       
    
     }catch(IOException e) {
-    println("couldn't read config file...");
+      println("couldn't read config file...");
     }
 }
 
@@ -393,8 +416,8 @@ void refresh_data(){
     grid_nx = input_grid_nx;
     grid_ny = input_grid_ny;
   } else {
-    grid_nx = max( 1, min(MAX_BINS, int( (100 - gridsize_selector.arrayValue()[0]) / 2.2 ) ) );
-    grid_ny = max( 1, min(MAX_BINS, int( (100 - gridsize_selector.arrayValue()[1]) / 2.2 ) ) );
+    grid_nx = max( 1, min(MAX_BINS, int( (100 - gridsize_selector.arrayValue()[0])  ) ) );
+    grid_ny = max( 1, min(MAX_BINS, int( (100 - gridsize_selector.arrayValue()[1])  ) ) );
   }
   if ( grid_nx != old_grid_nx || grid_ny != old_grid_ny){
     old_grid_nx=grid_nx;
@@ -419,7 +442,7 @@ void setup(){
 
   // set global variables 
   strokeWeight(grid_stroke);
-  textSize(10);
+  textSize(11);
   stroke(255,100);
   
 
@@ -434,18 +457,25 @@ void setup(){
   cp5.addToggle("override_optima").setPosition(width - cp5_panel_offset + 220 ,150).setSize(30,20);
   if( binned_input == false )
     gridsize_selector=cp5.addSlider2D("gridsize").setPosition(width - cp5_panel_offset,75).setSize(100,100).setArrayValue(new float[] {70, 81});
-  cp5.addSlider("heatmap_min").setPosition(width - cp5_panel_offset,210).setWidth(200).setRange(-100,100).setNumberOfTickMarks(20).setSliderMode(Slider.FLEXIBLE);
-  cp5.addSlider("heatmap_max").setPosition(width - cp5_panel_offset,230).setWidth(200).setRange(-100,100).setValue(30).setNumberOfTickMarks(20).setSliderMode(Slider.FLEXIBLE);
+  cp5.addSlider("heatmap_min").setPosition(width - cp5_panel_offset,210).setSize(200,20).setRange(0,60).setValue(25);
+  cp5.addSlider("heatmap_max").setPosition(width - cp5_panel_offset,235).setSize(200,20).setRange(0,60).setValue(25);
 
   refresh_data();
 }
 
 void draw(){
+
   background(map);
   if ( binned_input == false ) refresh_data();
+  if ( override_optima == false ){
+    cp5.getController("heatmap_min").hide();
+    cp5.getController("heatmap_max").hide();
+  } else {
+    cp5.getController("heatmap_min").show();
+    cp5.getController("heatmap_max").show();
+  }
   draw_gridlines();
   fill(0,0,0,150);
   rect(width-cp5_panel_offset - 20,0,width+20,250,7);
   draw_heatmap();
-  cp5.hide("heatmap_min");
 }
