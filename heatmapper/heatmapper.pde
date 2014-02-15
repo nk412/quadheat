@@ -491,11 +491,20 @@ void draw(){
   draw_heatmap();
   int bin_x = bin_pos_x(mouseX);
   int bin_y = bin_pos_y(mouseY);
-  String mousetext=bin_x+","+bin_y;
   rectMode(CORNERS);
   fill(0,0);
   strokeWeight(2);
   rect(bin_x*grid_w,bin_y*grid_h,(bin_x+1)*grid_w,(bin_y+1)*grid_h);
+
+  float current_cell_value = 0;
+  int current_cell_count = 0;
+  for ( int dir=0; dir<4; dir++){
+    current_cell_value+=heatmap_data[dir][bin_x][bin_y][0];
+    current_cell_count+=heatmap_data[dir][bin_x][bin_y][1];
+  }
+
+  String mousetext=current_cell_value+" ("+current_cell_count+")";
+  fill(255);
   text(mousetext,mouseX,mouseY);
 
   fill(0,0,0,150);
