@@ -63,7 +63,7 @@ class P5Properties extends Properties {
   float getFloatProperty(String id, float defVal) {
     return float(getProperty(id,""+defVal)); 
   }  
-}
+};
 
 // Coordinate translation
 float translate_x_coord(float x){
@@ -154,6 +154,28 @@ void update_heatmap_data_binned_input(int binx, int biny, int dir, float old_fps
   if (fps > observed_max) observed_max = fps;
 }
 
+int bin_pos_x( float pos_x){
+  int bin_x=0;
+  if ( binned_input == false ){
+    bin_x = max(0, floor( pos_x / grid_w ));
+    bin_x = min(grid_nx-1,bin_x);
+  } else {
+    bin_x = int(  max(0, pos_x )  );
+  }
+  return bin_x;
+}
+
+int bin_pos_y( float pos_y){
+  int bin_y=0;
+  if ( binned_input == false ){
+    bin_y = max(0, floor( pos_y / grid_h));
+    bin_y = min(grid_ny-1,bin_y);
+  } else {
+    bin_y = int(  max(0, pos_y )  );
+  }
+  return bin_y;
+}
+
 void parse_line(String l){
   
   String[] columns = splitTokens(l,"\t");
@@ -163,26 +185,11 @@ void parse_line(String l){
   int direction = get_direction( float(columns[2]) );
   float fps = float(columns[3]);
 
-  // val translation here if necessary
-
-  // // update recorded min and max
-  // if (fps < observed_min) observed_min = fps;
-  // if (fps > observed_max) observed_max = fps;
-
   float obs = 1;
   if ( columns.length > 4 ) obs= int( columns[4] );
 
-  int bin_x=0;
-  int bin_y=0;
-  if ( binned_input == false ){
-    bin_x = max(0, floor( pos_x / grid_w ));
-    bin_y = max(0, floor( pos_y / grid_h));
-    bin_x = min(grid_nx-1,bin_x);
-    bin_y = min(grid_ny-1,bin_y);
-  } else {
-    bin_x = int(  max(0, pos_x )  );
-    bin_y = int(  max(0, pos_y )  );
-  }
+  int bin_x=bin_pos_x(pos_x);
+  int bin_y=bin_pos_y(pos_y);
 
   if ( binned_input == true )
     update_heatmap_data_binned_input(bin_x,bin_y,direction,fps,obs);
@@ -201,6 +208,8 @@ void read_dataset(){
   cp5.getController("heatmap_min").setMax(observed_max);
   cp5.getController("heatmap_max").setMin(observed_min);
   cp5.getController("heatmap_max").setMax(observed_max);
+  cp5.getController("max_fps_threshold").setMin(observed_min);
+  cp5.getController("max_fps_threshold").setMax(observed_max);
 }
 
 void reset_array(){
@@ -443,7 +452,7 @@ void setup(){
   size(map.width,map.height);
 
   // set global variables 
-  strokeWeight(grid_stroke);
+  
   textSize(11);
   stroke(255,100);
   
@@ -476,9 +485,19 @@ void draw(){
     cp5.getController("heatmap_min").show();
     cp5.getController("heatmap_max").show();
   }
+  strokeWeight(grid_stroke);
   draw_gridlines();
+
+  draw_heatmap();
+  int bin_x = bin_pos_x(mouseX);
+  int bin_y = bin_pos_y(mouseY);
+  String mousetext=bin_x+","+bin_y;
+  rectMode(CORNERS);
+  fill(0,0);
+  strokeWeight(2);
+  rect(bin_x*grid_w,bin_y*grid_h,(bin_x+1)*grid_w,(bin_y+1)*grid_h);
+  text(mousetext,mouseX,mouseY);
+
   fill(0,0,0,150);
   rect(width-cp5_panel_offset - 20,0,width+20,250,7);
-  draw_heatmap();
-  text(translate_x_coord(mouseX),mouseX,mouseY);
 }
