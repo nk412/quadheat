@@ -76,7 +76,7 @@ float translate_y_coord(float y){
 
 float translate_fps(float old_fps){
   // return max(0,60-old_fps);
-  return old_fps*1000;
+  return old_fps;
 
 }
 
@@ -87,7 +87,8 @@ float round_float(float val, int dp)
 
 String generate_intext(float val, float obs){
     String intext = "";
-    if( show_fps == true ) intext+=round_float(60-val,1);
+    // if( show_fps == true ) intext+=round_float(60-val,1);
+    if( show_fps == true ) intext+=round_float(val,1);
     if( show_obs == true ) intext+="\n("+int(obs)+")";
     return intext;
 }
@@ -260,7 +261,7 @@ void draw_triangles(){
     int tl_y = y * grid_h;
 
     float val = heatmap_data[dir][x][y][0];
-    if ( 60 - val > max_fps_threshold ) continue;
+    // if ( 60 - val > max_fps_threshold ) continue;
     
     float obs = heatmap_data[dir][x][y][1];
     if ( obs < min_obs_threshold ) continue;      
@@ -335,7 +336,7 @@ void draw_boxes(){
       compound_obs += heatmap_data[dir][x][y][1];
     }
     float val = compound_val / compound_obs;
-    if ( 60 - val > max_fps_threshold ) continue;
+    if ( val > max_fps_threshold ) continue;
     float obs = compound_obs;
     if ( obs < min_obs_threshold ) continue;      
             
