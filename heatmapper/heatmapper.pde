@@ -454,7 +454,7 @@ void setup(){
 
   // set global variables 
   
-  textSize(11);
+  textSize(14);
   stroke(255,100);
   
 
@@ -509,5 +509,12 @@ void draw(){
   text(mousetext,mouseX,mouseY);
 
   fill(0,0,0,150);
-  rect(width-cp5_panel_offset - 20,0,width+20,250,7);
+  // rect(width-cp5_panel_offset - 20,0,width+20,250,7);
+
+  if ( keyPressed ){
+    if ( key == 's' || key == 'S' ){
+      saveFrame();
+    }
+  }
+
 }
