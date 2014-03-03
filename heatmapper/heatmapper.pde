@@ -27,11 +27,11 @@ float observed_max=0;
 
 //Control panel settings
 int cp5_panel_offset = 300;
-float max_fps_threshold = 30;
+float max_value_threshold = 30;
 float min_obs_threshold = 10;
 boolean directional_mode = false;
 boolean enable_gridlines = true;
-boolean show_fps = false;
+boolean show_value = false;
 boolean show_obs = false;
 int grid_nx=15;
 int grid_ny=10;
@@ -74,9 +74,9 @@ float translate_y_coord(float y){
   return map.height - fixed_y;
 }
 
-float translate_fps(float old_fps){
-  // return max(0,60-old_fps);
-  return old_fps;
+float translate_value(float old_value){
+  // return max(0,60-old_value);
+  return old_value;
 
 }
 
@@ -87,8 +87,8 @@ float round_float(float val, int dp)
 
 String generate_intext(float val, float obs){
     String intext = "";
-    // if( show_fps == true ) intext+=round_float(60-val,1);
-    if( show_fps == true ) intext+=round_float(val,1);
+    // if( show_value == true ) intext+=round_float(60-val,1);
+    if( show_value == true ) intext+=round_float(val,1);
     if( show_obs == true ) intext+="\n("+int(obs)+")";
     return intext;
 }
@@ -101,14 +101,14 @@ int get_direction( float rot ){
   else return 3;
 }
 
-void update_heatmap_data(int binx, int biny, int dir, float old_fps, float obs){
+void update_heatmap_data(int binx, int biny, int dir, float old_value, float obs){
   //update count and mean
-  if ( old_fps == 0 ) return; 
-  float fps = translate_fps(old_fps);
+  if ( old_value == 0 ) return; 
+  float value = translate_value(old_value);
   float old_val = heatmap_data[dir][binx][biny][0]; //mean
   float old_cnt = heatmap_data[dir][binx][biny][1]; //count
   float old_prod = old_val * old_cnt;
-  old_prod += fps;
+  old_prod += value;
   old_cnt += obs;
   float new_val = old_prod / old_cnt;
   heatmap_data[dir][binx][biny][0] = new_val;
@@ -120,14 +120,14 @@ void update_heatmap_data(int binx, int biny, int dir, float old_fps, float obs){
 
 }
 
-void update_heatmap_data_aggregated_data(int binx, int biny, int dir, float old_fps, float obs){
+void update_heatmap_data_aggregated_data(int binx, int biny, int dir, float old_value, float obs){
   //update count and mean
-  float fps=translate_fps(old_fps);
+  float value=translate_value(old_value);
   
   float old_val = heatmap_data[dir][binx][biny][0]; //mean
   float old_cnt = heatmap_data[dir][binx][biny][1]; //count
   float old_prod = old_val * old_cnt;
-  old_prod += (fps*obs);
+  old_prod += (value*obs);
   old_cnt += obs;
   float new_val = old_prod / old_cnt;
   
@@ -141,18 +141,18 @@ void update_heatmap_data_aggregated_data(int binx, int biny, int dir, float old_
 }
 
 
-void update_heatmap_data_binned_input(int binx, int biny, int dir, float old_fps, float obs){
-  println(binx,biny,dir,old_fps,obs);
+void update_heatmap_data_binned_input(int binx, int biny, int dir, float old_value, float obs){
+  println(binx,biny,dir,old_value,obs);
   //update count and mean
-  if ( old_fps == 0 ) return;
-  float fps = translate_fps(old_fps);
+  if ( old_value == 0 ) return;
+  float value = translate_value(old_value);
   
-  heatmap_data[dir][binx][biny][0] = fps;
+  heatmap_data[dir][binx][biny][0] = value;
   heatmap_data[dir][binx][biny][1] = obs;
 
   // update recorded min and max
-  if (fps < observed_min) observed_min = fps;
-  if (fps > observed_max) observed_max = fps;
+  if (value < observed_min) observed_min = value;
+  if (value > observed_max) observed_max = value;
 }
 
 int bin_pos_x( float pos_x){
@@ -184,7 +184,7 @@ void parse_line(String l){
   float pos_x = translate_x_coord( float(columns[0]) );
   float pos_y = translate_y_coord( float(columns[1]) );
   int direction = get_direction( float(columns[2]) );
-  float fps = float(columns[3]);
+  float value = float(columns[3]);
 
   float obs = 1;
   if ( columns.length > 4 ) obs= int( columns[4] );
@@ -193,11 +193,11 @@ void parse_line(String l){
   int bin_y=bin_pos_y(pos_y);
 
   if ( binned_input == true )
-    update_heatmap_data_binned_input(bin_x,bin_y,direction,fps,obs);
+    update_heatmap_data_binned_input(bin_x,bin_y,direction,value,obs);
   else if ( aggregated_data == true )
-    update_heatmap_data_aggregated_data(bin_x,bin_y,direction,fps,obs);
+    update_heatmap_data_aggregated_data(bin_x,bin_y,direction,value,obs);
   else
-    update_heatmap_data(bin_x,bin_y,direction,fps,obs);                               
+    update_heatmap_data(bin_x,bin_y,direction,value,obs);                               
 }
 
 
@@ -209,8 +209,8 @@ void read_dataset(){
   cp5.getController("heatmap_min").setMax(observed_max);
   cp5.getController("heatmap_max").setMin(observed_min);
   cp5.getController("heatmap_max").setMax(observed_max);
-  cp5.getController("max_fps_threshold").setMin(observed_min);
-  cp5.getController("max_fps_threshold").setMax(observed_max);
+  cp5.getController("max_value_threshold").setMin(observed_min);
+  cp5.getController("max_value_threshold").setMax(observed_max);
 }
 
 void reset_array(){
@@ -261,7 +261,7 @@ void draw_triangles(){
     int tl_y = y * grid_h;
 
     float val = heatmap_data[dir][x][y][0];
-    // if ( 60 - val > max_fps_threshold ) continue;
+    // if ( 60 - val > max_value_threshold ) continue;
     
     float obs = heatmap_data[dir][x][y][1];
     if ( obs < min_obs_threshold ) continue;      
@@ -336,7 +336,7 @@ void draw_boxes(){
       compound_obs += heatmap_data[dir][x][y][1];
     }
     float val = compound_val / compound_obs;
-    if ( val > max_fps_threshold ) continue;
+    if ( val > max_value_threshold ) continue;
     float obs = compound_obs;
     if ( obs < min_obs_threshold ) continue;      
             
@@ -394,11 +394,11 @@ void read_config_file(){
       
       /*
       //Control panel settings
-      float max_fps_threshold = 30;
+      float max_value_threshold = 30;
       float min_obs_threshold = 10;
       boolean directional_mode = false;
       boolean enable_gridlines = true;
-      boolean show_fps = false;
+      boolean show_value = false;
       boolean show_obs = false;
       int grid_nx=15;
       int grid_ny=10;
@@ -460,11 +460,11 @@ void setup(){
 
   //cp5 control panel
   cp5 = new ControlP5(this);
-  cp5.addSlider("max_fps_threshold").setPosition(width - cp5_panel_offset,25).setSize(200,20).setRange(0,60).setValue(25);
+  cp5.addSlider("max_value_threshold").setPosition(width - cp5_panel_offset,25).setSize(200,20).setRange(0,60).setValue(25);
   cp5.addSlider("min_obs_threshold").setPosition(width - cp5_panel_offset,50).setSize(200,20).setRange(0,1000).setValue(200);
   cp5.addToggle("directional_mode").setPosition(width - cp5_panel_offset + 120 ,75).setSize(30,20);
   cp5.addToggle("enable_gridlines").setPosition(width -cp5_panel_offset + 120,110).setSize(30,20);
-  cp5.addToggle("show_fps").setPosition(width - cp5_panel_offset + 220 ,75).setSize(30,20);
+  cp5.addToggle("show_value").setPosition(width - cp5_panel_offset + 220 ,75).setSize(30,20);
   cp5.addToggle("show_obs").setPosition(width -cp5_panel_offset + 220,110).setSize(30,20);
   cp5.addToggle("override_optima").setPosition(width - cp5_panel_offset + 220 ,150).setSize(30,20);
   if( binned_input == false )
